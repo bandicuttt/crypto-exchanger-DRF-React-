@@ -16,6 +16,9 @@ class User(AbstractUser):
     email=models.EmailField(
         unique=True,
     )
+    auth_token=models.CharField(
+        max_length=500,
+    )
 
     def __str__(self):
         return self.username

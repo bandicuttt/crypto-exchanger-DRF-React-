@@ -29,9 +29,17 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'djoser',
     'corsheaders',
+    'channels',
 ]
 
 # APPS
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
+
 
 INSTALLED_APPS += [
     'users',
@@ -53,6 +61,8 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
+
+ASGI_APPLICATION = 'config.asgi.application'
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
@@ -202,7 +212,7 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
-    'VERIFYING_KEY': None,
+    'VERIFYING_KEY': SECRET_KEY,
     'AUDIENCE': None,
     'ISSUER': None,
 
@@ -224,3 +234,5 @@ CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = ['*']
 CSRF_COOKIE_SECURE = False
+
+
