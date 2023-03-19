@@ -47,7 +47,7 @@ class AssetConsumer(GenericAsyncAPIConsumer):
                     'asset' : asset,
                 }  
             })
-        await database_sync_to_async(post_save.connect)(order_saved, sender=Asset)
+        await database_sync_to_async(post_save.connect)(asset_saved, sender=Asset)
     
     @database_sync_to_async
     def get_all_assets(self):
@@ -132,7 +132,7 @@ def order_saved(sender, instance, created, **kwargs):
     )
 
 @receiver(post_save, sender=Asset)
-def order_saved(sender, instance, created, **kwargs):
+def asset_saved(sender, instance, created, **kwargs):
     message = {
         'messageText': 'GetAsset',
         'asset': AssetSerializer(instance).data,

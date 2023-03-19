@@ -22,7 +22,7 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
         message_type = data.get('action')
 
-        if message_type == 'subscribe':
+        if message_type == 'SubscribeMarketData':
             asset_id = data.get('assetId')
             if asset_id:
                 subscription_id = str(uuid.uuid4())
@@ -30,7 +30,7 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
                 await self.send_success_info(subscription_id)
             else:
                 await self.send_error_info('Missing assetId')
-        elif message_type == 'unsubscribe':
+        elif message_type == 'UnsubscribeMarketData':
             subscription_id = data.get('subscriptionId')
             asset_id = self.subscriptions.get(subscription_id)
             if asset_id:

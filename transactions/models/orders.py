@@ -21,8 +21,14 @@ class Order(models.Model):
         )
     asset = models.ForeignKey(
         Asset,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name='asset_buy'
         )
+    asset_pay = models.ForeignKey(
+        Asset,
+        on_delete=models.CASCADE,
+        related_name='asset_pay'
+    )
     order_type = models.CharField(
         max_length=4,
         choices=ORDER_TYPE_CHOICES

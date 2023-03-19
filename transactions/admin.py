@@ -26,6 +26,7 @@ class OrderAdmin(admin.ModelAdmin):
         'id',
         'user',
         'asset',
+        'asset_pay',
         'order_type',
         'order_price',
         'order_quantity',
