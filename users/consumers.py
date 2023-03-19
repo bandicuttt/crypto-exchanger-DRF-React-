@@ -2,7 +2,10 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 import json
 import uuid
 from asgiref.sync import sync_to_async
-
+from django.db.models.signals import post_save
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+from django.dispatch import receiver
 from transactions.models.assets import Asset
 
 class SubscribeMarketConsumer(AsyncWebsocketConsumer):
@@ -114,3 +117,15 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
                 'currentPrice': str(current_price)
                 }
         }))
+
+
+@receiver(post_save, sender=Asset)
+def asset_saved(sender, instance, **kwargs):
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        'asset_%s' % instance.pk,
+        {
+            'type': 'asset_update',
+            'current_price': instance.current_price
+        }
+    )
