@@ -52,7 +52,6 @@ class CreateOrderSerializer(serializers.ModelSerializer):
             'order_type',
             'order_price',
             'order_quantity',
-            'order_status',
             'asset',
             'asset_pay',
         )
@@ -60,16 +59,24 @@ class CreateOrderSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         asset = attrs.get('asset')
         asset_pay = attrs.get('asset_pay')
+        order_price = attrs.get('order_price')
+        order_quantity = attrs.get('order_quantity')
+
         if asset == asset_pay:
             raise ParseError("You cannot buy and sell the same currency")  
+        
+        if float(order_price) < 0:
+            raise ParseError('Invalid order price')
+        
+        if float(order_quantity) < 0:
+            raise ParseError('Invalid order quantity')
         return attrs
-
+        
     def create(self, validated_data):
         user = self.context['request'].user
         order_type = validated_data['order_type']
         order_price = validated_data['order_price']
         order_quantity = validated_data['order_quantity']
-        order_status  = validated_data['order_status']
         asset_pay = validated_data['asset_pay']
         asset = validated_data['asset']
         order = Order.objects.create(
@@ -77,7 +84,6 @@ class CreateOrderSerializer(serializers.ModelSerializer):
             order_type=order_type,
             order_price=order_price,
             order_quantity=order_quantity,
-            order_status=order_status,
             asset=asset,
             asset_pay=asset_pay,
         )
