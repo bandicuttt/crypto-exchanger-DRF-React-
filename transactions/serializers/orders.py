@@ -5,6 +5,14 @@ from transactions.serializers.assets import AssetSerializer
 from rest_framework.exceptions import ParseError
 
 
+
+class OrderPrices(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = (
+            'order_price',
+        )
+
 class OrderSerializer(serializers.ModelSerializer):
     user = UserSerializer()
     asset = AssetSerializer()

@@ -48,6 +48,7 @@ class AssetConsumer(GenericAsyncAPIConsumer):
                 }  
             })
         await database_sync_to_async(post_save.connect)(asset_saved, sender=Asset)
+        
     
     @database_sync_to_async
     def get_all_assets(self):

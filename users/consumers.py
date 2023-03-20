@@ -7,6 +7,11 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from django.dispatch import receiver
 from transactions.models.assets import Asset
+from transactions.models.orders import Order
+from channels.db import database_sync_to_async
+from django.db.models import Max
+
+from transactions.serializers.orders import OrderPrices, OrderSerializer
 
 class SubscribeMarketConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -83,6 +88,15 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
             }
         await self.send(json.dumps(message))
 
+
+    @database_sync_to_async
+    def get_prices(self):
+        queryset = Order.objects.all().order_by('-order_price').first()
+        max_price = OrderPrices(instance=queryset).data
+        queryset = Order.objects.all().order_by('order_price').first()
+        min_price = OrderPrices(instance=queryset).data
+        return max_price,min_price
+
     async def get_asset(self, asset_id):
         try:
             return await sync_to_async(Asset.objects.get)(id=asset_id)
@@ -110,14 +124,18 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
 
     async def asset_update(self, event):
         current_price = event['current_price']
+        max_price, min_price = await self.get_prices()
         await self.send(text_data=json.dumps({
             'messageType': 8,
             'message': {
                 'messageText': 'MarketDataUpdate',
-                'currentPrice': str(current_price)
+                'currentPrice': str(current_price),
+                'buy_price': str(min_price['order_price']),
+                'sell_price': str(max_price['order_price'])
                 }
-        }))
 
+    
+        }))
 
 @receiver(post_save, sender=Asset)
 def asset_saved(sender, instance, **kwargs):
