@@ -1,5 +1,5 @@
 from django.urls import path, include
-from transactions.views.assets import UpdateAssetPriceView
+from transactions.views.assets import GetCrossesAssetView, UpdateAssetPriceView
 from transactions.views.orders import CreateOrderView, UpdateOrderView
 from transactions.views.transactions import CreateTransactionView
 from users.views.users import UserRegistrationView
@@ -9,5 +9,6 @@ urlpatterns = [
     path('orders/updateorder/<int:pk>/', UpdateOrderView.as_view(), name='update-new-order'),
     path('tranasction/create/', CreateTransactionView.as_view(), name='create-new-transaction'),
     path('user/registration/', UserRegistrationView.as_view(), name='user-registration'),
-    path('assets/<str:symbol>/', UpdateAssetPriceView.as_view(), name='update_asset_price'),
+    path('assets/updateasset/<str:symbol>/', UpdateAssetPriceView.as_view(), name='update-asset-price'),
+    path('assets/getassetscross/', GetCrossesAssetView.as_view(), name='asset-crosses'),
 ]
