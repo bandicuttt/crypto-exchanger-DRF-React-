@@ -170,8 +170,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Industrial Enterprise',
-        'DESCRIPTION': 'Industrial Enterprise',
+    'TITLE': 'Exhanger',
+        'DESCRIPTION': 'Currency Exchanger',
     'VERSION': '1.0.0',
 
     'SERVE_PERMISSIONS': [

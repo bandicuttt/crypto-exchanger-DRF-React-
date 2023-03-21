@@ -11,6 +11,65 @@ function RegistrationForm() {
     const [passwordError, setPasswordError] = useState("");
     const [emailError, setEmailError] = useState("");
     const [usernameError, setUsernameError] = useState("");
+    function registerUser(username, email, password) {
+        const registrationUrl = 'http://127.0.0.1:8000/api/user/registration/';
+        const registrationData = {
+            username: username,
+            email: email,
+            password: password
+        };
+        console.log(username)
+        console.log(password)
+        fetch(registrationUrl, {
+            method: 'POST',
+            body: JSON.stringify(registrationData),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                }
+                throw new Error('Network response was not ok.');
+            })
+            .then(data => {
+                const tokenUrl = 'http://127.0.0.1:8000/api/auth/jwt/create/';
+                const tokenData = {
+                    username: username,
+                    password: password
+                };
+
+                fetch(tokenUrl, {
+                    method: 'POST',
+                    body: JSON.stringify(tokenData),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                    .then(response => {
+                            response.json().then(data => {
+                                if (data.messageType === 5 && data.message.messageText === "SuccessInfo") {
+                                    console.log(data.message.responseBody)
+                                    document.cookie = `access_token=${data.message.responseBody.access}`;
+                                    document.cookie = `refresh_token=${data.message.responseBody.refresh}`;
+                                    const nextPageUrl = 'http://example.com/new-page';
+                                    window.location.replace(nextPageUrl);
+                                }
+                            })
+
+
+
+
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    }
     function HandleClick() {
         setForm(2)
     }
@@ -32,6 +91,7 @@ function RegistrationForm() {
                 setEmailError("Invalid email format.");
                 return;
             }
+            registerUser(username, email, password);
             setEmailError("");
         } else {
             setPasswordError("Password must be at least 8 characters long, contain at least 1 digit, at least 1 uppercase letter, and contain no spaces.");

@@ -84,14 +84,13 @@ class GetOrdersConsumer(GenericAsyncAPIConsumer):
             )
             user = self.serializer_class(user).data
             data = await self.get_orders(user)
-            for order in data:
-                await self.send_json({
-                    'messageType': 9,
-                    'message': {
-                        'messageText': 'GetOrder',
-                        'order' : order,
-                    }  
-                })
+            await self.send_json({
+                'messageType': 9,
+                'message': {
+                    'messageText': 'GetOrder',
+                    'orders' : data,
+                }  
+            })
             await database_sync_to_async(post_save.connect)(order_saved, sender=Order)
         else:
             await self.send_json({
