@@ -10,11 +10,185 @@ from transactions.models.assets import Asset
 from transactions.serializers.assets import UpdatePriceAssetSerializer
 from transactions.views.assets import UpdateAssetPriceView, get_intersections
 from unittest.mock import patch
+from transactions.models.orders import Order
 
 
 User = get_user_model()
 
 
+class CreateTransactionTestCase(APITestCase):
+    def setUp(self):
+        self.asset_pay = Asset.objects.create(name='Etherium', symbol='ETH', current_price=Decimal('50000.00'))
+        self.asset = Asset.objects.create(name='Bitcoin', symbol='BTC', current_price=Decimal('50000.00'))
+        self.basic_user = User.objects.create(username='user1', email='user1@example.com', password='password123')
+        self.basic_user_2 = User.objects.create(username='user', email='user@example.com', password='password123')
+        self.order_2 = Order.objects.create(user=self.basic_user_2, asset=self.asset, asset_pay=self.asset_pay, order_type='sell', order_price=222, order_quantity=433)
+        self.order_3 = Order.objects.create(user=self.basic_user, asset=self.asset, asset_pay=self.asset_pay, order_type='buy', order_price=222, order_quantity=433)
+        self.order = Order.objects.create(user=self.basic_user, asset=self.asset, asset_pay=self.asset_pay, order_type='buy', order_price=222, order_quantity=433)
+        self.order_4 = Order.objects.create(user=self.basic_user_2, asset=self.asset, asset_pay=self.asset_pay, order_type='buy', order_price=222, order_quantity=433)
+
+
+    def test_create_transaction_success(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-transaction')
+        response = self.client.post(url, data={'buy_order':self.order.id, 'sell_order': self.order_2.id})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_create_transactions_with_equal_users(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-transaction')
+        response = self.client.post(url, data={'buy_order':self.order.id, 'sell_order': self.order_3.id})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_transactions_with_equal_order_types(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-transaction')
+        response = self.client.post(url, data={'buy_order':self.order.id, 'sell_order': self.order_4.id})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_transaction_unauth(self):
+        url = reverse('create-new-transaction')
+        response = self.client.post(url, data={'buy_order':self.order.id, 'sell_order': self.order_2.id})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_create_transaction_invalid_buy_order(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-transaction')
+        response = self.client.post(url, data={'buy_order':'222', 'sell_order': self.order_2.id})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_transaction_invalid_sell_order(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-transaction')
+        response = self.client.post(url, data={'buy_order':self.order.id, 'sell_order': '222'})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_transaction_invalid_request_method(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-transaction')
+        response = self.client.patch(url, data={'buy_order':self.order.id, 'sell_order': self.order_2.id})
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+class UpdateOrderTestCase(APITestCase):
+    def setUp(self):
+        self.asset_pay = Asset.objects.create(name='Etherium', symbol='ETH', current_price=Decimal('50000.00'))
+        self.asset = Asset.objects.create(name='Bitcoin', symbol='BTC', current_price=Decimal('50000.00'))
+        self.basic_user = User.objects.create(username='user', email='user@example.com', password='password123')
+        self.basic_user_2 = User.objects.create(username='user2', email='use2r@example.com', password='password123')
+        self.order = Order.objects.create(user=self.basic_user, asset=self.asset, asset_pay=self.asset_pay, order_type='buy', order_price=222, order_quantity=433)
+
+    def test_update_order_success(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('update-new-order', kwargs={'pk': self.order.id})
+        response = self.client.patch(url, data={'order_status':'cancelled'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_update_order_unauth(self):
+        url = reverse('update-new-order', kwargs={'pk': self.order.id})
+        response = self.client.patch(url, data={'order_status':'cancelled'})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_update_order_invalid_order_status(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('update-new-order', kwargs={'pk': self.order.id})
+        response = self.client.patch(url, data={'order_status':'test'})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_order_invalid_user(self):
+        self.client.force_authenticate(user=self.basic_user_2)
+        url = reverse('update-new-order', kwargs={'pk': self.order.id})
+        response = self.client.patch(url, data={'order_status':'test'})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_order_invalid_order_id(self):
+        self.client.force_authenticate(user=self.basic_user_2)
+        url = reverse('update-new-order', kwargs={'pk': 111})
+        response = self.client.patch(url, data={'order_status':'cancelled'})
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+class CreateOrdersTestCase(APITestCase):
+    def setUp(self):
+        self.asset = Asset.objects.create(name='Bitcoin', symbol='BTC', current_price=Decimal('50000.00'))
+        self.asset_pay = Asset.objects.create(name='Etherium', symbol='ETH', current_price=Decimal('50000.00'))
+        self.basic_user = User.objects.create(username='user', email='user@example.com', password='password123')
+
+    def test_create_order_buy_success(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':self.asset.id, 'asset_pay':self.asset_pay.id, 'order_type':'buy', 'order_price':222, 'order_quantity':433})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    
+    def test_create_order_sell_success(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':self.asset.id, 'asset_pay':self.asset_pay.id, 'order_type':'sell', 'order_price':222, 'order_quantity':433})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_create_order_unauth(self):
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':self.asset.id, 'asset_pay':self.asset_pay.id, 'order_type':'sell', 'order_price':222, 'order_quantity':433})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_create_order_invalid_order_type(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':self.asset.id, 'asset_pay':self.asset_pay.id, 'order_type':'test', 'order_price':222, 'order_quantity':433})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_order_asset_not_found(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':2222, 'asset_pay':self.asset_pay.id, 'order_type':'buy', 'order_price':222, 'order_quantity':433})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_order_asset_pay_not_found(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':self.asset.id, 'asset_pay':333, 'order_type':'buy', 'order_price':222, 'order_quantity':433})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_order_asset_equal_asset_pay(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':self.asset.id, 'asset_pay':self.asset.id, 'order_type':'buy', 'order_price':222, 'order_quantity':433})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_order_invalid_order_price(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':self.asset.id, 'asset_pay':self.asset.id, 'order_type':'buy', 'order_price':'fff', 'order_quantity':433})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_order_negative_order_price(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':self.asset.id, 'asset_pay':self.asset.id, 'order_type':'buy', 'order_price':-200, 'order_quantity':433})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    def test_create_order_zero_order_price(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':self.asset.id, 'asset_pay':self.asset.id, 'order_type':'buy', 'order_price':0, 'order_quantity':433})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_order_invalid_order_quantity(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':self.asset.id, 'asset_pay':self.asset.id, 'order_type':'buy', 'order_price':222, 'order_quantity':'333'})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_order_negative_order_quantity(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':self.asset.id, 'asset_pay':self.asset.id, 'order_type':'buy', 'order_price':222, 'order_quantity':-20})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_order_zero_quantity(self):
+        self.client.force_authenticate(user=self.basic_user)
+        url = reverse('create-new-order')
+        response = self.client.post(url, data={'asset':self.asset.id, 'asset_pay':self.asset.id, 'order_type':'buy', 'order_price':222, 'order_quantity':0})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
 class AssetTestCase(APITestCase):
     def setUp(self):
         self.asset = Asset.objects.create(name='Bitcoin', symbol='BTC', current_price=Decimal('50000.00'))
