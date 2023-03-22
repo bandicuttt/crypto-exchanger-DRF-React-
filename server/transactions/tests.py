@@ -1,3 +1,4 @@
+import pytest
 from decimal import Decimal
 from django.test import TestCase
 from django.urls import reverse
@@ -5,12 +6,13 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
-
+from transactions.consumers import AssetConsumer, GetOrdersConsumer
 from transactions.models.assets import Asset
-from transactions.serializers.assets import UpdatePriceAssetSerializer
-from transactions.views.assets import UpdateAssetPriceView, get_intersections
-from unittest.mock import patch
+from transactions.serializers.assets import AssetSerializer
+from transactions.serializers.orders import OrderSerializer
 from transactions.models.orders import Order
+from channels.testing import WebsocketCommunicator
+from channels.db import database_sync_to_async
 
 
 User = get_user_model()
@@ -227,3 +229,75 @@ class AssetTestCase(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertCountEqual(response.data, ['BTC/ETH', 'BTC/LTC', 'ETH/LTC'])
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_asset_consumer():
+    communicator = WebsocketCommunicator(
+        AssetConsumer.as_asgi(),
+        "/ws/get-all-assets/",
+    )
+
+    connected, _ = await communicator.connect()
+    assert connected
+
+    data = await communicator.receive_json_from()
+    assert data['messageType'] == 10
+    assert data['message']['messageText'] == 'GetAsset'
+    assert len(data['message']['asset']) == Asset.objects.count()
+
+    asset_data = {'name': 'Test asset', 'symbol': 'TEST', 'current_price': 123.45}
+    asset_serializer = AssetSerializer(data=asset_data)
+    assert asset_serializer.is_valid()
+    asset = asset_serializer.save()
+    event_data = {'type': 'asset_saved_handler', 'instance': asset_data}
+    await communicator.send_json_to(event_data)
+    data = await communicator.receive_json_from(5)
+    assert data['messageType'] == 10
+    assert data['message']['messageText'] == 'GetAsset'
+    assert data['message']['asset'] == AssetSerializer(asset).data
+
+    await communicator.disconnect()
+
+@database_sync_to_async
+def create_test_order(user):
+    asset_1 = Asset.objects.create(symbol='ETH')
+    asset_2 = Asset.objects.create(symbol='BTC')
+    order = Order.objects.create(
+        user=user,
+        asset=asset_1,
+        asset_pay=asset_2,
+        order_type='buy',
+        order_price='1000.00',
+        order_quantity='1.0',
+        order_status='active'
+    )
+    return order
+
+@pytest.mark.asyncio
+async def test_get_orders_consumer():
+    user = get_user_model().objects.create(username='testuser')
+    order = await create_test_order(user)
+    communicator = WebsocketCommunicator(
+        GetOrdersConsumer.as_asgi(),
+        f"/ws/orders/?token={user.auth_token}",
+    )
+    connected, _ = await communicator.connect()
+    assert connected
+    message = {
+        'messageType': 9,
+        'message': {
+            'messageText': 'GetOrder',
+        }
+    }
+    await communicator.send_json_to(message)
+    response = await communicator.receive_json_from()
+    assert response == {
+        'messageType': 9,
+        'message': {
+            'messageText': 'GetOrder',
+            'orders': [OrderSerializer(order).data],
+        }
+    }
+    await communicator.disconnect()
