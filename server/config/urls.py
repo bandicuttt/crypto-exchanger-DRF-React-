@@ -16,10 +16,13 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView
+from transactions.urls import urlpatterns as transactions
+from users.urls import urlpatterns as users
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
 ]
-
+urlpatterns+=transactions
+urlpatterns+=users
