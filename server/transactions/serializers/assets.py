@@ -16,7 +16,8 @@ class UpdatePriceAssetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Asset
         fields = (
-            'current_price',
+            'symbol',
+            'current_price'
         )
 
         def update(self, instance, validated_data):

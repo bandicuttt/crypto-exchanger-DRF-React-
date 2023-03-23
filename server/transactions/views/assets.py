@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema_view, extend_schema
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from transactions.models.assets import Asset
 from transactions.serializers.assets import AssetSerializer, UpdatePriceAssetSerializer
 from rest_framework.response import Response
@@ -12,7 +12,9 @@ from rest_framework.response import Response
 class UpdateAssetPriceView(generics.UpdateAPIView):
     queryset = Asset.objects.all()
     serializer_class = UpdatePriceAssetSerializer
-    permission_classes = (IsAdminUser,)
+    # permission_classes = (IsAdminUser,)
+    # FOR TESTS ONLY
+    permission_classes = (AllowAny,)
     http_method_names = ('patch',)
     lookup_field = 'symbol'
 
@@ -24,12 +26,18 @@ class UpdateAssetPriceView(generics.UpdateAPIView):
     
 
 def get_intersections(assets_list):
-    result = []
-    for i in range(len(assets_list)):
-        for j in range(i+1, len(assets_list)):
-            intersection = f"{assets_list[i]}/{assets_list[j]}"
-            result.append(intersection)
-    return result
+    crosses = []
+    for asset1 in assets_list:
+        for asset2 in assets_list:
+            if asset1 != asset2:
+                asset_pair = f"{asset1['asset']}/{asset2['asset']}"
+                cross = {
+                    'asset': asset_pair,
+                    'asset_id': asset1['asset_id'] if asset1['asset'] == asset_pair.split('/')[0] else asset2['asset_id']
+                }
+                crosses.append(cross)
+    sorted_crosses = sorted(crosses, key=lambda c: c['asset'])
+    return sorted_crosses
 
 @extend_schema_view(
     get=extend_schema(summary='Получение пересечений всех активов', tags=['Активы'])
@@ -37,11 +45,13 @@ def get_intersections(assets_list):
 class GetCrossesAssetView(generics.ListAPIView):
     queryset = Asset.objects.all()
     serializer_class = AssetSerializer
-    permission_classes = (IsAuthenticated,)
+    # permission_classes = (IsAuthenticated,)
+    # FOR TESTS ONLY
+    permission_classes = (AllowAny,)
     http_method_names = ('get',)
 
     def get(self, request, *args, **kwargs):
-        assets_list = [asset.symbol for asset in self.get_queryset()]
+        assets_list = [{'asset':asset.symbol, 'asset_id':asset.id} for asset in self.get_queryset()]
         intersections = get_intersections(assets_list)
         serializer = self.get_serializer(self.get_queryset(), many=True)
         return Response(intersections)

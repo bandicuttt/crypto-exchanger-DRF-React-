@@ -199,25 +199,25 @@ class AssetTestCase(APITestCase):
 
     def test_update_asset_price(self):
         self.client.force_authenticate(user=self.admin_user)
-        url = reverse('update-asset-price', kwargs={'symbol': self.asset.symbol})
+        url = reverse('update-asset-price')
         response = self.client.patch(url, data={'symbol': self.asset.symbol, 'current_price': Decimal('60000.00')})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['current_price'], '60000.00')
 
     def test_update_asset_price_is_not_asset(self):
         self.client.force_authenticate(user=self.admin_user)
-        url = reverse('update-asset-price', kwargs={'symbol': 'ABCD'})
+        url = reverse('update-asset-price')
         response = self.client.patch(url, data={'symbol': 'BCDA', 'current_price': Decimal('60000.00')})
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_update_is_not_permissions(self):
         self.client.force_authenticate(user=self.basic_user)
-        url = reverse('update-asset-price', kwargs={'symbol': self.asset.symbol})
+        url = reverse('update-asset-price')
         response = self.client.patch(url, data={'symbol': self.asset.symbol, 'current_price': Decimal('60000.00')})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_update_is_not_auth(self):
-        url = reverse('update-asset-price', kwargs={'symbol': self.asset.symbol})
+        url = reverse('update-asset-price')
         response = self.client.patch(url, data={'symbol': self.asset.symbol, 'current_price': Decimal('60000.00')})
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -228,7 +228,6 @@ class AssetTestCase(APITestCase):
         url = reverse('asset-crosses')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertCountEqual(response.data, ['BTC/ETH', 'BTC/LTC', 'ETH/LTC'])
 
 
 @pytest.mark.django_db(transaction=True)

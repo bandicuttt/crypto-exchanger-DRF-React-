@@ -5,5 +5,5 @@ from users.consumers import SubscribeMarketConsumer
 
 
 websocket_urlpatterns = [
-   path('ws/subscribe-market/<int:asset_id>/', SubscribeMarketConsumer.as_asgi()),
+   path('ws/subscribe-market/', SubscribeMarketConsumer.as_asgi()),
 ]

@@ -12,18 +12,51 @@ function LoginForm() {
     function HandleClick() {
         setForm(1)
     }
-    function handleSubmit(e) {
+    async function handleSubmit(e) {
         e.preventDefault();
+
         if (username.trim() === "") {
             setUsernameError("Username is required.");
             return;
         }
         setUsernameError("");
+
         if (password.trim() === "") {
             setPasswordError("Password is required.");
             return;
         }
         setPasswordError("");
+        try {
+                const tokenUrl = 'http://127.0.0.1:8000/api/auth/jwt/create/';
+                const tokenData = {
+                    username: username,
+                    password: password
+                };
+
+                fetch(tokenUrl, {
+                    method: 'POST',
+                    body: JSON.stringify(tokenData),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                    .then(response => {
+                        response.json().then(data => {
+                            if (data.messageType === 5 && data.message.messageText === "SuccessInfo") {
+                                console.log(data.message.responseBody)
+                                document.cookie = `access_token=${data.message.responseBody.access}`;
+                                document.cookie = `refresh_token=${data.message.responseBody.refresh}`;
+                                const nextPageUrl = '/';
+                                window.location.replace(nextPageUrl);
+                            }
+                        })
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+        } catch (error) {
+            console.error('Error:', error);
+        }
     }
     return (
         <form className={"login-form"} ref={formRef} onSubmit={handleSubmit}>

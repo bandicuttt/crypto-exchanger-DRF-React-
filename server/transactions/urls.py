@@ -8,6 +8,6 @@ urlpatterns = [
     path('orders/createneworder/', CreateOrderView.as_view(), name='create-new-order'),
     path('orders/updateorder/<int:pk>/', UpdateOrderView.as_view(), name='update-new-order'),
     path('tranasction/create/', CreateTransactionView.as_view(), name='create-new-transaction'),
-    path('assets/updateasset/<str:symbol>/', UpdateAssetPriceView.as_view(), name='update-asset-price'),
+    path('assets/updateasset/', UpdateAssetPriceView.as_view(), name='update-asset-price'),
     path('assets/getassetscross/', GetCrossesAssetView.as_view(), name='asset-crosses'),
 ]

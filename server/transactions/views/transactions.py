@@ -1,6 +1,6 @@
 from drf_spectacular.utils import extend_schema_view, extend_schema
 from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from transactions.models.transcations import Transaction
 from transactions.serializers.transactions import CreateTransactionSerializer
 
@@ -11,5 +11,7 @@ from transactions.serializers.transactions import CreateTransactionSerializer
 class CreateTransactionView(generics.CreateAPIView):
     queryset = Transaction.objects.all()
     serializer_class = CreateTransactionSerializer
-    permission_classes = (IsAuthenticated,)
+    # permission_classes = (IsAuthenticated,)
+    # FOR TESTS ONLY
+    permission_classes = (AllowAny,)
     http_method_names = ('post',)

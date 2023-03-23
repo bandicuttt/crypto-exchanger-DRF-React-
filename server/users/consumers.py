@@ -32,7 +32,8 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
             if asset_id:
                 subscription_id = str(uuid.uuid4())
                 await self.subscribe(subscription_id, asset_id)
-                await self.send_success_info(subscription_id)
+                max_price, min_price = await self.get_prices(asset_id)
+                await self.send_success_info(subscription_id, asset_id,max_price, min_price)
             else:
                 await self.send_error_info('Missing assetId')
         elif message_type == 'UnsubscribeMarketData':
@@ -57,12 +58,15 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
         del self.subscriptions[subscription_id]
         await self.channel_layer.group_discard(f'asset_{asset_id}', self.channel_name)
 
-    async def send_success_info(self, subscription_id):
+    async def send_success_info(self, subscription_id, asset_id, max_price, min_price):
         message = {
             'messageType': 5,
             'message': {
                 'messageText' : 'SuccessInfo',
                 'subscriptionId': subscription_id,
+                'asset_id': asset_id,
+                'max_price': max_price,
+                'min_price': min_price,
                 }
             }
         await self.send(json.dumps(message))
@@ -90,12 +94,20 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
 
 
     @database_sync_to_async
-    def get_prices(self):
-        queryset = Order.objects.all().order_by('-order_price').first()
-        max_price = OrderPrices(instance=queryset).data
-        queryset = Order.objects.all().order_by('order_price').first()
-        min_price = OrderPrices(instance=queryset).data
-        return max_price,min_price
+    def get_prices(self,asset_id):
+        try:
+            queryset = Order.objects.filter(asset=asset_id,order_status='active').order_by('-order_price').first()
+            max_price = OrderPrices(instance=queryset).data
+            queryset = Order.objects.filter(asset=asset_id,order_status='active').order_by('order_price').first()
+            min_price = OrderPrices(instance=queryset).data
+            if not max_price['order_price']:
+                max_price['order_price'] = 0
+            if not min_price['order_price']:
+                min_price['order_price'] = 0
+
+            return max_price,min_price
+        except Exception as e:
+            print(e)
 
     async def get_asset(self, asset_id):
         try:
@@ -113,37 +125,49 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
                     f'asset_{asset.id}',
                         {
                             'type': 'market_data_update',
-                            'current_price': str(current_price)
+                            'current_price': str(current_price),
                         }
                     )
                 setattr(self, f'previous_price_{asset.id}', current_price)
 
     async def market_data_update(self, event):
-        current_price = event['current_price']
-        await self.send_market_data_update(self.scope['url_route']['kwargs']['asset_id'], current_price)
+        try:
+            current_price = event['current_price']
+            await self.send_market_data_update(self.scope['url_route']['kwargs']['asset_id'], current_price)
+        except Exception as e:
+            print('ок')
+            print(e)
 
     async def asset_update(self, event):
-        current_price = event['current_price']
-        max_price, min_price = await self.get_prices()
-        await self.send(text_data=json.dumps({
-            'messageType': 8,
-            'message': {
-                'messageText': 'MarketDataUpdate',
-                'currentPrice': str(current_price),
-                'buy_price': str(min_price['order_price']),
-                'sell_price': str(max_price['order_price'])
-                }
-
-    
-        }))
+        try:
+            current_price = event['current_price']
+            asset_id = event['asset']
+            max_price, min_price = await self.get_prices(asset_id)
+            await self.send(text_data=json.dumps({
+                'messageType': 8,
+                'message': {
+                    'messageText': 'MarketDataUpdate',
+                    'currentPrice': str(current_price),
+                    'buy_price': str(min_price['order_price']),
+                    'sell_price': str(max_price['order_price'])
+                    }
+            }))
+        except Exception as e:
+            print('упал')
+            print(e)
 
 @receiver(post_save, sender=Asset)
 def asset_saved(sender, instance, **kwargs):
-    channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(
-        'asset_%s' % instance.pk,
-        {
-            'type': 'asset_update',
-            'current_price': instance.current_price
-        }
-    )
+    try:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'asset_%s' % instance.pk,
+            {
+                'type': 'asset_update',
+                'asset': instance.pk,
+                'current_price': instance.current_price
+            }
+        )
+    except Exception as e:
+        print('падаю здесь')
+        print(e)

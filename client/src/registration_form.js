@@ -18,8 +18,6 @@ function RegistrationForm() {
             email: email,
             password: password
         };
-        console.log(username)
-        console.log(password)
         fetch(registrationUrl, {
             method: 'POST',
             body: JSON.stringify(registrationData),
@@ -53,7 +51,7 @@ function RegistrationForm() {
                                     console.log(data.message.responseBody)
                                     document.cookie = `access_token=${data.message.responseBody.access}`;
                                     document.cookie = `refresh_token=${data.message.responseBody.refresh}`;
-                                    const nextPageUrl = 'http://example.com/new-page';
+                                    const nextPageUrl = '/';
                                     window.location.replace(nextPageUrl);
                                 }
                             })

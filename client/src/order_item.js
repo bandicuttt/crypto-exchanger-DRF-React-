@@ -15,18 +15,18 @@ function OrderItem(props) {
             </td>
 
             <td>
-                {props.order.order_status}
+                {props.order.created_at}
             </td>
 
             <td>
-                {props.order.id}
+                {props.order.updated_at}
             </td>
 
-            <td>{props.order.id}</td>
-            <td>{props.order.id}</td>
-            <td>{props.order.id}</td>
-            <td>{props.order.id}</td>
-            <td>{props.order.id}</td>
+            <td>{props.order.order_status}</td>
+            <td>{props.order.order_type}</td>
+            <td>{props.order.order_price}</td>
+            <td>{props.order.order_quantity}</td>
+            <td>{props.order.asset.symbol}/{props.order.asset_pay.symbol}</td>
         </tr>
     );
 }

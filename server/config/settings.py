@@ -34,6 +34,11 @@ INSTALLED_APPS = [
 
 # APPS
 
+INSTALLED_APPS += [
+    'users',
+    'transactions',
+]
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer"
@@ -41,10 +46,7 @@ CHANNEL_LAYERS = {
 }
 
 
-INSTALLED_APPS += [
-    'users',
-    'transactions',
-]
+
 
 AUTH_USER_MODEL='users.User'
 
@@ -213,7 +215,7 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
+    'BLACKLIST_AFTER_ROTATION': False,
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
     'VERIFYING_KEY': SECRET_KEY,
