@@ -27,7 +27,7 @@ function LoginForm() {
         }
         setPasswordError("");
         try {
-                const tokenUrl = 'http://127.0.0.1:8000/api/auth/jwt/create/';
+                const tokenUrl = `${process.env.REACT_APP_API_URL}/api/auth/jwt/create/`;
                 const tokenData = {
                     username: username,
                     password: password

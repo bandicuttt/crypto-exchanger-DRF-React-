@@ -10,6 +10,7 @@ from transactions.models.assets import Asset
 from transactions.models.orders import Order
 from channels.db import database_sync_to_async
 from django.db.models import Max
+from transactions.serializers.assets import AssetSerializer
 
 from transactions.serializers.orders import OrderPrices, OrderSerializer
 
@@ -33,7 +34,8 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
                 subscription_id = str(uuid.uuid4())
                 await self.subscribe(subscription_id, asset_id)
                 max_price, min_price = await self.get_prices(asset_id)
-                await self.send_success_info(subscription_id, asset_id,max_price, min_price)
+                asset_price = await self.get_asset_price(asset_id)
+                await self.send_success_info(subscription_id, asset_id,max_price, min_price, asset_price)
             else:
                 await self.send_error_info('Missing assetId')
         elif message_type == 'UnsubscribeMarketData':
@@ -58,18 +60,23 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
         del self.subscriptions[subscription_id]
         await self.channel_layer.group_discard(f'asset_{asset_id}', self.channel_name)
 
-    async def send_success_info(self, subscription_id, asset_id, max_price, min_price):
-        message = {
-            'messageType': 5,
-            'message': {
-                'messageText' : 'SuccessInfo',
-                'subscriptionId': subscription_id,
-                'asset_id': asset_id,
-                'max_price': max_price,
-                'min_price': min_price,
+    async def send_success_info(self, subscription_id, asset_id, max_price, min_price, asset_price):
+        try:
+            message = {
+                'messageType': 5,
+                'message': {
+                    'messageText' : 'SuccessInfo',
+                    'subscriptionId': subscription_id,
+                    'asset_id': asset_id,
+                    'max_price': max_price,
+                    'min_price': min_price,
+                    'currency_price': asset_price,
+                    'asset_id': asset_id
+                    }
                 }
-            }
-        await self.send(json.dumps(message))
+            await self.send(json.dumps(message))
+        except Exception as e:
+            print(e)
 
     async def send_error_info(self, reason):
         message = {
@@ -94,20 +101,27 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
 
 
     @database_sync_to_async
-    def get_prices(self,asset_id):
+    def get_asset_price(self,asset_id):
         try:
-            queryset = Order.objects.filter(asset=asset_id,order_status='active').order_by('-order_price').first()
-            max_price = OrderPrices(instance=queryset).data
-            queryset = Order.objects.filter(asset=asset_id,order_status='active').order_by('order_price').first()
-            min_price = OrderPrices(instance=queryset).data
-            if not max_price['order_price']:
-                max_price['order_price'] = 0
-            if not min_price['order_price']:
-                min_price['order_price'] = 0
-
-            return max_price,min_price
+            queryset = Asset.objects.filter(id=asset_id).first()
+            asset_price = AssetSerializer(instance=queryset).data
+            if not asset_price['current_price']:
+                asset_price['current_price'] = 0
+            return asset_price['current_price']
         except Exception as e:
             print(e)
+
+    @database_sync_to_async
+    def get_prices(self,asset_id):
+        queryset = Order.objects.filter(asset=asset_id,order_status='active',order_type='sell').order_by('-order_price').first()
+        max_price = OrderPrices(instance=queryset).data
+        queryset = Order.objects.filter(asset=asset_id,order_status='active',order_type='buy').order_by('order_price').first()
+        min_price = OrderPrices(instance=queryset).data
+        if not max_price['order_price']:
+            max_price['order_price'] = 0
+        if not min_price['order_price']:
+            min_price['order_price'] = 0
+        return max_price,min_price
 
     async def get_asset(self, asset_id):
         try:
@@ -131,43 +145,33 @@ class SubscribeMarketConsumer(AsyncWebsocketConsumer):
                 setattr(self, f'previous_price_{asset.id}', current_price)
 
     async def market_data_update(self, event):
-        try:
-            current_price = event['current_price']
-            await self.send_market_data_update(self.scope['url_route']['kwargs']['asset_id'], current_price)
-        except Exception as e:
-            print('ок')
-            print(e)
+        current_price = event['current_price']
+        await self.send_market_data_update(self.scope['url_route']['kwargs']['asset_id'], current_price)
+
 
     async def asset_update(self, event):
-        try:
-            current_price = event['current_price']
-            asset_id = event['asset']
-            max_price, min_price = await self.get_prices(asset_id)
-            await self.send(text_data=json.dumps({
-                'messageType': 8,
-                'message': {
-                    'messageText': 'MarketDataUpdate',
-                    'currentPrice': str(current_price),
-                    'buy_price': str(min_price['order_price']),
-                    'sell_price': str(max_price['order_price'])
-                    }
-            }))
-        except Exception as e:
-            print('упал')
-            print(e)
+        current_price = event['current_price']
+        asset_id = event['asset']
+        max_price, min_price = await self.get_prices(asset_id)
+        await self.send(text_data=json.dumps({
+            'messageType': 8,
+            'message': {
+                'messageText': 'MarketDataUpdate',
+                'currentPrice': str(current_price),
+                'buy_price': str(min_price['order_price']),
+                'sell_price': str(max_price['order_price']),
+                'asset_id': asset_id,
+                }
+        }))
 
 @receiver(post_save, sender=Asset)
 def asset_saved(sender, instance, **kwargs):
-    try:
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            'asset_%s' % instance.pk,
-            {
-                'type': 'asset_update',
-                'asset': instance.pk,
-                'current_price': instance.current_price
-            }
-        )
-    except Exception as e:
-        print('падаю здесь')
-        print(e)
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        'asset_%s' % instance.pk,
+        {
+            'type': 'asset_update',
+            'asset': instance.pk,
+            'current_price': instance.current_price
+        }
+    )

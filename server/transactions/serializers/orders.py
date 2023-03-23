@@ -86,6 +86,7 @@ class CreateOrderSerializer(serializers.ModelSerializer):
             order_quantity=order_quantity,
             asset=asset,
             asset_pay=asset_pay,
+            order_status='active',
         )
         return order
     

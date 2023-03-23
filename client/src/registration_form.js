@@ -12,7 +12,7 @@ function RegistrationForm() {
     const [emailError, setEmailError] = useState("");
     const [usernameError, setUsernameError] = useState("");
     function registerUser(username, email, password) {
-        const registrationUrl = 'http://127.0.0.1:8000/api/user/registration/';
+        const registrationUrl = `${process.env.REACT_APP_API_URL}/api/user/registration/`;
         const registrationData = {
             username: username,
             email: email,
@@ -32,7 +32,7 @@ function RegistrationForm() {
                 throw new Error('Network response was not ok.');
             })
             .then(data => {
-                const tokenUrl = 'http://127.0.0.1:8000/api/auth/jwt/create/';
+                const tokenUrl = `${process.env.REACT_APP_API_URL}/api/auth/jwt/create/`;
                 const tokenData = {
                     username: username,
                     password: password

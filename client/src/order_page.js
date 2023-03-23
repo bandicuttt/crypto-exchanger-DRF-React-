@@ -3,44 +3,62 @@ import { Cookies } from 'react-cookie';
 import OrderItem from "./order_item";
 import Ticker from "./ticker";
 
+function updateOrderStatus(orderId) {
+    setTimeout(() => {
+        const statusOptions = ['cancelled', 'rejected', 'filled'];
+        const status = statusOptions[Math.floor(Math.random() * statusOptions.length)];
+        const url = `${process.env.REACT_APP_API_URL}/api/orders/updateorder/${orderId}/`;
+        const body = { order_status: status };
 
-function OrderPage(props) {
-    // test func
-    function sendUpdateRequest() {
-        // Choose a random symbol and price
-        // const symbols = ['BTC', 'ETH', 'RUB', 'USD', 'BNB'];
-        const symbols = ['RUB'];
-        const symbol = symbols[Math.floor(Math.random() * symbols.length)];
-        const price = Math.floor(Math.random() * 991) + 10;
-
-        // Construct the request body
-        const requestBody = {
-            symbol: symbol,
-            current_price: price
-        };
-
-        // Send the request using the fetch API
-        fetch('http://127.0.0.1:8000/assets/updateasset/', {
+        fetch(url, {
             method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
         })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to send update request');
+            .then(response => response.json())
+            .then(data => {
+                if (data.message.messageText === 'SuccessInfo'){
+                    alert(`Your order ${orderId} has been updated to ${status}`)
                 }
-                console.log('Update request sent successfully');
             })
-            .catch(error => {
-                console.error(error);
-            });
-    }
-    setInterval(sendUpdateRequest, 10000);
-    // test func
+            .catch(error => console.error(error));
+    }, 15000);
+}
 
+// test func
+function sendUpdateRequest() {
+    const cookies = new Cookies();
+    const symbols = ['BTC', 'ETH', 'RUB', 'USD', 'BNB'];
+    const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+    const price = Math.floor(Math.random() * 991) + 10;
 
+    const requestBody = {
+        symbol: symbol,
+        current_price: price
+    };
+
+    fetch(`${process.env.REACT_APP_API_URL}/assets/updateasset/`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer `+ cookies.get('access_token'),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to send update request');
+            }
+            console.log('Update request sent successfully');
+        })
+        .catch(error => {
+            console.error(error);
+        });
+}
+
+// test func
+setInterval(sendUpdateRequest, 10000);
+function OrderPage(props) {
 
     const cookies = new Cookies();
     const [ordersData,setOrdersData] = useState([])
@@ -49,7 +67,7 @@ function OrderPage(props) {
         const tokenData = {
             token: cookies.get('access_token'),
         };
-        fetch('http://127.0.0.1:8000/api/auth/jwt/verify/', {
+        fetch(`${process.env.REACT_APP_API_URL}/api/auth/jwt/verify/`, {
             method: 'POST',
             body: JSON.stringify(tokenData),
             headers: {
@@ -78,7 +96,7 @@ function OrderPage(props) {
             window.location.replace(nextPageUrl);
         } else {
             verify_token()
-                const socket = new WebSocket("ws://127.0.0.1:8000/ws/orders/?token=" + cookies.get('access_token'));
+                const socket = new WebSocket(`${process.env.REACT_APP_WS_URL}/ws/orders/?token=` + cookies.get('access_token'));
                 socket.onmessage = function (event) {
                     const data = JSON.parse(event.data);
                     if (data.message.messageText === 'GetOrder') {
@@ -96,6 +114,7 @@ function OrderPage(props) {
                         });
                     } else if (data.message.messageText === 'PlaceOrder') {
                         setOrdersData(prevOrdersData => [...prevOrdersData, data.message.order]);
+                        updateOrderStatus(data.message.order.id)
                     }
                 };
             }
@@ -104,7 +123,9 @@ function OrderPage(props) {
     if (ordersData)
     return (
         <>
+            <form className='TickerForm'>
             <Ticker/>
+            </form>
         <div className="content">
             <div className="container">
                 <h2 className="mb-5">My Orders</h2>

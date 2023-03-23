@@ -33,7 +33,8 @@ def get_intersections(assets_list):
                 asset_pair = f"{asset1['asset']}/{asset2['asset']}"
                 cross = {
                     'asset': asset_pair,
-                    'asset_id': asset1['asset_id'] if asset1['asset'] == asset_pair.split('/')[0] else asset2['asset_id']
+                    'asset_id': asset1['asset_id'] if asset1['asset'] == asset_pair.split('/')[0] else asset2['asset_id'],
+                    'asset_pay_id': asset1['asset_id'] if asset1['asset'] == asset_pair.split('/')[1] else asset2['asset_id']
                 }
                 crosses.append(cross)
     sorted_crosses = sorted(crosses, key=lambda c: c['asset'])
