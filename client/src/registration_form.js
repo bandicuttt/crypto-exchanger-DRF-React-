@@ -12,7 +12,7 @@ function RegistrationForm() {
     const [emailError, setEmailError] = useState("");
     const [usernameError, setUsernameError] = useState("");
     function registerUser(username, email, password) {
-        const registrationUrl = `${process.env.REACT_APP_API_URL}/api/user/registration/`;
+        const registrationUrl = `${process.env.REACT_APP_API_URL}/user/registration/`;
         const registrationData = {
             username: username,
             email: email,

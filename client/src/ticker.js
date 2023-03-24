@@ -126,6 +126,8 @@ function Ticker(props) {
                 response.json().then(data => {
                     if (data.messageType === 5 && data.message.messageText === "SuccessInfo") {
                         setAssets(data.message.responseBody)
+                    } else {
+                        window.location.href = '/auth';
                     }
                 })
             })
